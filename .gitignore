@@ -1,7 +1,0 @@
-.env
-concerts.db
-venv/
-__pycache__/
-*.pyc
-*.pyo
-.DS_Store
