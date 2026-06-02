@@ -29,7 +29,7 @@ def _setup() -> bool:
 def run_digest() -> None:
     """Fetch all sources, deduplicate, format, and send the Telegram digest."""
     from db import init_db, filter_new
-    from bot import send_message, format_digest
+    from bot import send_digest
     from scrapers import ticketmaster, bandsintown, songkick, news_rss
 
     init_db()
@@ -38,17 +38,18 @@ def run_digest() -> None:
     errors: list[str] = []
 
     sources = [
-        ("Ticketmaster", ticketmaster.fetch_events),
-        ("Bandsintown", bandsintown.fetch_events),
-        ("Songkick", songkick.fetch_events),
-        ("Google News", news_rss.fetch_events),
+        ("Ticketmaster", "ticketmaster", ticketmaster.fetch_events),
+        ("Bandsintown",  "bandsintown",  bandsintown.fetch_events),
+        ("Songkick",     "songkick",     songkick.fetch_events),
+        ("Google News",  "news_rss",     news_rss.fetch_events),
     ]
 
-    for name, fetcher in sources:
+    for name, source_key, fetcher in sources:
         try:
             events, error_note = fetcher()
             log.info("%s returned %d event(s)", name, len(events))
-            new = filter_new(events[0]["source"] if events else name.lower(), events)
+            new = filter_new(source_key, events)
+            log.info("%s has %d new event(s) after dedup", name, len(new))
             all_events.extend(new)
             if error_note:
                 errors.append(error_note)
@@ -57,9 +58,8 @@ def run_digest() -> None:
             log.error("%s failed: %s", name, exc)
             errors.append(msg)
 
-    digest = format_digest(all_events, errors)
     log.info("Sending digest (%d new events)...", len(all_events))
-    send_message(digest)
+    send_digest(all_events, errors)
 
 
 def start_scheduler() -> None:
