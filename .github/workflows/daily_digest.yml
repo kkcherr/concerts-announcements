@@ -39,4 +39,4 @@ jobs:
           TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
           BANDSINTOWN_APP_ID:   ${{ secrets.BANDSINTOWN_APP_ID }}
           DB_PATH: concerts.db
-        run: python main.py --run-now --force
+        run: python main.py --run-now

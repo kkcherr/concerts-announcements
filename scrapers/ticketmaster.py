@@ -14,12 +14,16 @@ SOURCE_NAME = "ticketmaster"
 
 
 def _search_artist(artist: str) -> list[dict]:
+    from datetime import date, timedelta
+    # Only fetch events whose on-sale / publish date is within the last 7 days
+    cutoff = (date.today() - timedelta(days=7)).strftime("%Y-%m-%dT00:00:00Z")
     params = {
         "apikey": TICKETMASTER_API_KEY,
         "keyword": artist,
         "classificationName": "music",
-        "size": 20,
+        "size": 10,
         "sort": "date,asc",
+        "publicVisibilityStartDateTime": cutoff,  # only recently listed events
     }
     try:
         resp = requests.get(BASE_URL, params=params, timeout=15)

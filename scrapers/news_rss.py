@@ -7,7 +7,7 @@ Also checks for major non-watchlist artist tour announcements.
 import hashlib
 import logging
 import xml.etree.ElementTree as ET
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 import requests
 from config import WATCHLIST
 
@@ -55,11 +55,22 @@ def _fetch_rss(query: str) -> list[dict]:
         log.warning("Failed to parse RSS XML: %s", exc)
         return []
 
+    cutoff = datetime.now(timezone.utc) - timedelta(days=2)
     items = []
     for item in root.findall(".//item"):
         title    = item.findtext("title") or ""
         link     = item.findtext("link") or ""
         pub_date = item.findtext("pubDate") or ""
+
+        # Skip articles older than 2 days
+        if pub_date:
+            try:
+                from email.utils import parsedate_to_datetime
+                pub_dt = parsedate_to_datetime(pub_date)
+                if pub_dt < cutoff:
+                    continue
+            except Exception:
+                pass
 
         # Strip the " - Source Name" suffix Google appends to titles
         if " - " in title:
