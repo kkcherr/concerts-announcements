@@ -1,12 +1,13 @@
 """
 Google News RSS scraper.
-Searches for "[artist] tour 2025 2026 announced" headlines.
+Searches for "[artist] concert/tour announced" headlines.
 Also checks for major non-watchlist artist tour announcements.
 """
 
 import hashlib
 import logging
 import xml.etree.ElementTree as ET
+from datetime import date
 import requests
 from config import WATCHLIST
 
@@ -19,46 +20,71 @@ RSS_URL = (
     "?q={query}&hl=en-US&gl=US&ceid=US:en"
 )
 
-MAJOR_TOUR_QUERY = (
-    '"tour announced" OR "new tour" OR "world tour" 2025 2026 concert'
-)
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0 Safari/537.36"
+    )
+}
+
+
+def _current_years() -> str:
+    """Return a query fragment like '2026 OR 2027' based on today's year."""
+    this_year = date.today().year
+    return f"{this_year} OR {this_year + 1}"
+
+
+def _major_tour_query() -> str:
+    years = _current_years()
+    return f'"tour announced" OR "new tour" OR "world tour" {years} concert'
 
 
 def _fetch_rss(query: str) -> list[dict]:
     url = RSS_URL.format(query=requests.utils.quote(query))
     try:
-        resp = requests.get(url, timeout=15)
+        resp = requests.get(url, headers=HEADERS, timeout=15)
         resp.raise_for_status()
     except Exception as exc:
         log.warning("News RSS request failed for query %r: %s", query, exc)
         raise
 
-    root = ET.fromstring(resp.content)
+    try:
+        root = ET.fromstring(resp.content)
+    except ET.ParseError as exc:
+        log.warning("Failed to parse RSS XML: %s", exc)
+        return []
+
     items = []
     for item in root.findall(".//item"):
-        title = item.findtext("title") or ""
-        link = item.findtext("link") or ""
+        title    = item.findtext("title") or ""
+        link     = item.findtext("link") or ""
         pub_date = item.findtext("pubDate") or ""
+
+        # Strip the " - Source Name" suffix Google appends to titles
+        if " - " in title:
+            title = title.rsplit(" - ", 1)[0].strip()
 
         uid = hashlib.md5(link.encode()).hexdigest()
         items.append(
             {
-                "id": uid,
-                "artist": "",
+                "id":         uid,
+                "artist":     "",
                 "event_name": title,
-                "venue": "",
-                "city": "",
-                "country": "",
-                "date": pub_date[:16],
-                "url": link,
-                "source": SOURCE_NAME,
+                "venue":      "",
+                "city":       "",
+                "country":    "",
+                "date":       pub_date[:16],
+                "url":        link,
+                "source":     SOURCE_NAME,
             }
         )
     return items
 
 
 def _artist_query(artist: str) -> str:
-    return f'"{artist}" tour 2025 OR 2026 announced'
+    years = _current_years()
+    return f'"{artist}" (concert OR tour OR show OR gig OR announced) {years}'
 
 
 def fetch_events() -> tuple[list[dict], str | None]:
@@ -75,7 +101,7 @@ def fetch_events() -> tuple[list[dict], str | None]:
             errors.append(str(exc))
 
     try:
-        major = _fetch_rss(MAJOR_TOUR_QUERY)
+        major = _fetch_rss(_major_tour_query())
         for item in major:
             item["artist"] = "📢 Major artist"
         all_events.extend(major)

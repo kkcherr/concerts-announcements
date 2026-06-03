@@ -6,6 +6,7 @@ Detects missing credentials and walks the user through providing them.
 import os
 import sys
 from pathlib import Path
+from dotenv import load_dotenv
 
 ENV_FILE = Path(".env")
 
@@ -136,6 +137,32 @@ def run_wizard() -> bool:
     _write_env(existing)
     _banner("Setup complete!")
     print("\nYour credentials have been saved to .env\n")
+
+    # Offer a test message now that credentials are saved
+    try:
+        answer = input("Would you like to send a test message to Telegram now to check it's working? (yes/no): ").strip().lower()
+        if answer in ("yes", "y"):
+            load_dotenv(ENV_FILE, override=True)
+            from bot import send_test_message
+            print("\nSending test message...")
+            ok = send_test_message()
+            if ok:
+                print("✅ Test message sent! Check your Telegram — you should see a message from your bot.")
+            else:
+                print(
+                    "❌ Test message failed. Don't worry — your credentials are saved.\n"
+                    "   Double-check your bot token and chat ID, then run:\n"
+                    "   python main.py --test"
+                )
+        else:
+            print(
+                "Skipped. You can send a test message any time by running:\n"
+                "   python main.py --test"
+            )
+    except (KeyboardInterrupt, EOFError):
+        pass
+
+    print()
     return True
 
 
