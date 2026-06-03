@@ -12,12 +12,21 @@ log = logging.getLogger(__name__)
 BASE_URL = "https://rest.bandsintown.com/artists/{artist}/events"
 SOURCE_NAME = "bandsintown"
 
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0 Safari/537.36"
+    ),
+    "Accept": "application/json",
+}
+
 
 def _search_artist(artist: str) -> list[dict]:
     url = BASE_URL.format(artist=requests.utils.quote(artist))
     params = {"app_id": BANDSINTOWN_APP_ID, "date": "upcoming"}
     try:
-        resp = requests.get(url, params=params, timeout=15)
+        resp = requests.get(url, params=params, headers=HEADERS, timeout=15)
         resp.raise_for_status()
         data = resp.json()
     except Exception as exc:
