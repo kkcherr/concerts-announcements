@@ -94,10 +94,55 @@ def _banner(text: str) -> None:
     print("=" * 60)
 
 
+def _is_ci() -> bool:
+    """Detect GitHub Actions or any other non-interactive CI environment."""
+    return (
+        os.getenv("CI") == "true"
+        or os.getenv("GITHUB_ACTIONS") == "true"
+        or not sys.stdin.isatty()
+    )
+
+
+def _all_credentials() -> dict:
+    """Merge .env file values with real environment variables (env vars win)."""
+    values = _read_existing_env()
+    for step in STEPS:
+        env_val = os.getenv(step["key"], "").strip()
+        if env_val:
+            values[step["key"]] = env_val
+    return values
+
+
+def check_env_or_setup() -> bool:
+    """
+    Call this at the top of main.py.
+    Returns True when all credentials are present and the bot can start.
+    """
+    values = _all_credentials()
+    missing = _missing_keys(values)
+
+    if not missing:
+        return True
+
+    if _is_ci():
+        # In GitHub Actions: print a clear error and exit — never prompt
+        print("\n❌ Missing required secrets in GitHub Actions:\n")
+        for key in missing:
+            print(f"   • {key}")
+        print(
+            "\nGo to your GitHub repo → Settings → Secrets and variables → Actions"
+            "\nand add each missing secret listed above."
+        )
+        return False
+
+    print("\n[Concert Bot] Missing credentials detected — launching setup wizard...\n")
+    return run_wizard()
+
+
 def run_wizard() -> bool:
     """
-    Returns True if setup is complete (either already was, or just finished).
-    Returns False if the user quit early.
+    Interactive wizard for local first-run setup.
+    Returns True if setup completed, False if the user quit early.
     """
     existing = _read_existing_env()
     missing = _missing_keys(existing)
@@ -163,17 +208,4 @@ def run_wizard() -> bool:
         pass
 
     print()
-    return True
-
-
-def check_env_or_setup() -> bool:
-    """
-    Call this at the top of main.py.
-    Returns True when all credentials are present and the bot can start.
-    """
-    existing = _read_existing_env()
-    missing = _missing_keys(existing)
-    if missing:
-        print("\n[Concert Bot] Missing credentials detected — launching setup wizard...\n")
-        return run_wizard()
     return True
