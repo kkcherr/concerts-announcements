@@ -32,7 +32,9 @@ def send_message(text: str) -> bool:
     }
     try:
         resp = requests.post(url, json=payload, timeout=15)
-        resp.raise_for_status()
+        if not resp.ok:
+            log.warning("HTML send failed — HTTP %s: %s", resp.status_code, resp.text)
+            resp.raise_for_status()
         return True
     except Exception as exc:
         log.warning("HTML send failed (%s), retrying as plain text", exc)
@@ -44,7 +46,9 @@ def send_message(text: str) -> bool:
     del payload["parse_mode"]
     try:
         resp = requests.post(url, json=payload, timeout=15)
-        resp.raise_for_status()
+        if not resp.ok:
+            log.error("Plain text send failed — HTTP %s: %s", resp.status_code, resp.text)
+            resp.raise_for_status()
         return True
     except Exception as exc:
         log.error("Plain text send also failed: %s", exc)
