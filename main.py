@@ -26,11 +26,21 @@ def _setup() -> bool:
     return True
 
 
-def run_digest() -> None:
-    """Fetch all sources, deduplicate, format, and send the Telegram digest."""
+def run_digest(force: bool = False) -> None:
+    """Fetch all sources, deduplicate, format, and send the Telegram digest.
+    If force=True, skip deduplication and send everything found.
+    """
+    import os
     from db import init_db, filter_new
     from bot import send_digest
     from scrapers import ticketmaster, bandsintown, songkick, news_rss
+
+    # Wipe the database when --force is used so all events are treated as new
+    if force:
+        db_path = os.environ.get("DB_PATH", "concerts.db")
+        if os.path.exists(db_path):
+            os.remove(db_path)
+            log.info("--force: cleared seen-events database")
 
     init_db()
 
@@ -95,10 +105,10 @@ if __name__ == "__main__":
     if not _setup():
         sys.exit(1)
 
-    # Allow running a single digest immediately for testing
     if "--run-now" in sys.argv:
-        log.info("Running digest immediately (--run-now flag)...")
-        run_digest()
+        force = "--force" in sys.argv
+        log.info("Running digest immediately (force=%s)...", force)
+        run_digest(force=force)
         sys.exit(0)
 
     # Send a Telegram test message if this is first run
