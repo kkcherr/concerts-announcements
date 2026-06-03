@@ -1,0 +1,42 @@
+name: Daily Concert Digest
+
+on:
+  schedule:
+    # 8:00 AM UTC = 9:00 AM London in winter (GMT), 9:00 AM in summer (BST)
+    # GitHub Actions runs in UTC. This is close enough to 9 AM London year-round.
+    - cron: '0 8 * * *'
+  workflow_dispatch:   # lets you trigger it manually from the GitHub website
+
+jobs:
+  send-digest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Restore seen-events database (so we never send duplicates)
+        uses: actions/cache@v4
+        with:
+          path: concerts.db
+          key: concerts-db-${{ github.run_id }}
+          restore-keys: |
+            concerts-db-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Send daily digest
+        env:
+          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
+          TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
+          BANDSINTOWN_APP_ID:   ${{ secrets.BANDSINTOWN_APP_ID }}
+          DB_PATH: concerts.db
+        run: python main.py --run-now
