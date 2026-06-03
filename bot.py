@@ -13,16 +13,12 @@ MAX_MSG_LEN = 4096  # Telegram hard limit
 
 
 def send_message(text: str) -> bool:
-    """Send a message, splitting automatically if it exceeds Telegram's limit."""
+    """Send a single message, truncating if it exceeds Telegram's limit."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         log.error("Telegram credentials not set — cannot send message.")
         return False
 
-    chunks = _split_message(text)
-    ok = True
-    for chunk in chunks:
-        ok = _send_chunk(chunk) and ok
-    return ok
+    return _send_chunk(_truncate(text))
 
 
 def _send_chunk(text: str) -> bool:
@@ -42,28 +38,21 @@ def _send_chunk(text: str) -> bool:
         return False
 
 
-def _split_message(text: str) -> list[str]:
-    """Split on newlines so we never cut in the middle of a line."""
+def _truncate(text: str) -> str:
+    """If text exceeds Telegram's limit, keep as many complete events as fit
+    and append a '… and N more' tail rather than cutting mid-sentence."""
     if len(text) <= MAX_MSG_LEN:
-        return [text]
+        return text
 
-    chunks: list[str] = []
-    current: list[str] = []
-    current_len = 0
+    tail = "\n\n<i>… message too long — see GitHub Actions logs for full list.</i>"
+    limit = MAX_MSG_LEN - len(tail)
 
-    for line in text.split("\n"):
-        line_len = len(line) + 1  # +1 for the newline
-        if current_len + line_len > MAX_MSG_LEN and current:
-            chunks.append("\n".join(current))
-            current = []
-            current_len = 0
-        current.append(line)
-        current_len += line_len
+    # Cut at the last newline that still fits
+    cut = text[:limit].rfind("\n")
+    if cut == -1:
+        cut = limit
 
-    if current:
-        chunks.append("\n".join(current))
-
-    return chunks
+    return text[:cut] + tail
 
 
 def send_test_message() -> bool:
