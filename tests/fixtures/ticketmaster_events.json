@@ -1,0 +1,79 @@
+{
+  "_embedded": {
+    "events": [
+      {
+        "id": "G5vYZbZ4A1234",
+        "name": "Sample Artist: The World Tour",
+        "url": "https://www.ticketmaster.co.uk/sample-artist-tickets/event/123",
+        "dates": {
+          "start": {
+            "localDate": "2026-09-12",
+            "localTime": "19:30",
+            "dateTime": "2026-09-12T18:30:00Z"
+          }
+        },
+        "sales": {
+          "public": {
+            "startDateTime": "2026-06-20T09:00:00Z",
+            "startTBD": false
+          },
+          "presales": [
+            {
+              "name": "O2 Priority",
+              "startDateTime": "2026-06-17T09:00:00Z",
+              "endDateTime": "2026-06-19T23:59:00Z"
+            },
+            {
+              "name": "Artist Fan Club Presale",
+              "startDateTime": "2026-06-16T09:00:00Z",
+              "endDateTime": "2026-06-17T08:59:00Z"
+            }
+          ]
+        },
+        "_embedded": {
+          "venues": [
+            {
+              "name": "The O2 Arena",
+              "city": {"name": "London"},
+              "country": {"countryCode": "GB"}
+            }
+          ]
+        }
+      },
+      {
+        "id": "G5vYZbZ4A5678",
+        "name": "Sample Artist: The World Tour",
+        "url": "https://www.ticketmaster.com/sample-artist-tickets/event/456",
+        "dates": {
+          "start": {
+            "localDate": "2026-10-01",
+            "localTime": "20:00",
+            "dateTime": "2026-10-02T00:00:00Z"
+          }
+        },
+        "sales": {
+          "public": {
+            "startDateTime": "2026-07-01T15:00:00Z",
+            "startTBD": false
+          },
+          "presales": []
+        },
+        "_embedded": {
+          "venues": [
+            {
+              "name": "Madison Square Garden",
+              "city": {"name": "New York"},
+              "country": {"countryCode": "US"}
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "page": {
+    "size": 50,
+    "totalElements": 2,
+    "totalPages": 1,
+    "number": 0
+  }
+}

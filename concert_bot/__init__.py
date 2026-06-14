@@ -1,0 +1,1 @@
+"""Concert digest bot package."""

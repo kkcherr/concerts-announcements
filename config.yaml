@@ -1,0 +1,145 @@
+# Concert Digest Bot — configuration
+#
+# Secrets (API keys, Telegram tokens) are NOT in this file.
+# They live in environment variables — see .env.example.
+
+artist_lists:
+  must_see:
+    artists:
+      - Taylor Swift
+      - Adele
+      - Lady Gaga
+      - Coldplay
+      - Harry Styles
+      - Beyoncé
+      - Sabrina Carpenter
+      - Ariana Grande
+      - Céline Dion
+      - Olivia Rodrigo
+      - Chappell Roan
+      - OneRepublic
+      - Maroon 5
+      - Miley Cyrus
+      - Dua Lipa
+      - Billie Eilish
+      - Charli XCX
+      - Reneé Rapp
+      - Gracie Abrams
+      - Tate McRae
+      - P!nk
+      - Sam Smith
+      - Florence + The Machine
+      - Katy Perry
+      - Ed Sheeran
+      - Imagine Dragons
+      - Lana Del Rey
+      - Lorde
+      - Bruno Mars
+      - SZA
+      - Selena Gomez
+      - Lewis Capaldi
+      - The Killers
+      - The Weeknd
+      - Justin Bieber
+      - Justin Timberlake
+      - Shawn Mendes
+      - Camila Cabello
+      - Demi Lovato
+      - Kelly Clarkson
+      - Doja Cat
+      - Hozier
+      - Noah Kahan
+      - Benson Boone
+      - Teddy Swims
+      - RAYE
+      - Rosalía
+      - Shakira
+      - Aitana
+      - Halsey
+      - Meghan Trainor
+      - Niall Horan
+      - Conan Gray
+      - Troye Sivan
+  legends:
+    artists:
+      - Madonna
+      - Diana Ross
+      - Stevie Nicks
+      - Cher
+      - Elton John
+      - Paul McCartney
+      - Stevie Wonder
+      - Dolly Parton
+      - Mariah Carey
+      - Janet Jackson
+      - Kate Bush
+      - Annie Lennox
+      - Kylie Minogue
+      - Rod Stewart
+      - Lionel Richie
+      - Gloria Estefan
+      - Cyndi Lauper
+      - Bette Midler
+      - Sade
+      - Grace Jones
+      - Blondie
+      - Sting
+  blockbusters:
+    artists:
+      - Metallica
+      - The Rolling Stones
+      - U2
+      - Bruce Springsteen
+      - Foo Fighters
+      - Guns N' Roses
+      - AC/DC
+      - Rammstein
+      - Linkin Park
+      - Muse
+      - Depeche Mode
+      - Red Hot Chili Peppers
+      - Oasis
+      - Pearl Jam
+      - Green Day
+      - Iron Maiden
+      - System of a Down
+      - Tool
+      - Nine Inch Nails
+      - The Cure
+      - Queen + Adam Lambert
+      - Bon Jovi
+      - Arctic Monkeys
+      - Blink-182
+      - My Chemical Romance
+      - Paramore
+
+# Countries whose announcements get a PRIORITY flag and are sorted to the top.
+# Use ISO 3166-1 alpha-2 codes (GB = United Kingdom, ES = Spain).
+priority_countries: [GB, ES]
+
+# When the daily digest is sent, and in what timezone.
+daily_run_time: "19:00"
+timezone: "Europe/London"
+
+# If true, send a "nothing new today" message even when there are no new events.
+send_when_empty: false
+
+# Toggle each source on/off.
+sources:
+  ticketmaster: true
+  bandsintown: true
+
+# Internal file paths (relative to the project folder).
+paths:
+  state_db: "data/state.db"
+  ticketmaster_attraction_cache: "data/ticketmaster_attractions.json"
+
+# Bandsintown scraper politeness settings.
+bandsintown:
+  request_delay_seconds: 2.0
+  max_retries: 3
+
+# Ticketmaster API settings.
+ticketmaster:
+  events_page_size: 50
+  request_delay_seconds: 0.25

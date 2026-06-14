@@ -1,0 +1,37 @@
+{
+  "props": {
+    "pageProps": {
+      "artist": {
+        "name": "Sample Artist",
+        "url": "https://www.bandsintown.com/a/12345-sample-artist",
+        "upcomingEventCount": 2
+      },
+      "events": [
+        {
+          "id": "event-1",
+          "title": "Sample Artist at The O2 Arena",
+          "datetime": "2026-09-12T18:30:00",
+          "url": "https://www.bandsintown.com/e/event-1",
+          "venue": {
+            "name": "The O2 Arena",
+            "city": "London",
+            "country": "United Kingdom"
+          },
+          "lineup": ["Sample Artist"]
+        },
+        {
+          "id": "event-2",
+          "title": "Sample Artist at Wizink Center",
+          "datetime": "2026-11-05T20:00:00",
+          "url": "https://www.bandsintown.com/e/event-2",
+          "venue": {
+            "name": "WiZink Center",
+            "city": "Madrid",
+            "country": "Spain"
+          },
+          "lineup": ["Sample Artist"]
+        }
+      ]
+    }
+  }
+}
