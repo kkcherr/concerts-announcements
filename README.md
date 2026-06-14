@@ -350,25 +350,67 @@ python main.py --dry-run --source bandsintown
 
 ---
 
-## Part 7 — Deploying so it runs 24/7 (Railway)
+## Part 7 — Deploying so it runs 24/7
 
 If you close your laptop, the bot stops. To have it running **all the
-time** without your computer, deploy it to **Railway** — a beginner-
-friendly cloud hosting service with a free tier and no credit card required
-to start.
+time** without your computer, you have two options. **Option A (GitHub
+Actions)** is recommended if this project is already on GitHub, since it
+needs no extra account or signup.
+
+### Option A — GitHub Actions (recommended)
+
+A **GitHub Action** is a small automated job that GitHub runs for you on a
+schedule, for free. This project includes a ready-made one at
+`.github/workflows/daily_digest.yml` that runs the bot once a day.
+
+**7A.1 — Add your secrets to GitHub**
+
+1. Open this project's page on GitHub in your browser.
+2. Click **Settings** (top right of the repo page) → **Secrets and
+   variables** → **Actions** in the left sidebar.
+3. Click **New repository secret** and add each of these one at a time
+   (the names must match exactly, and paste only the value — no quote
+   marks):
+   - `TELEGRAM_BOT_TOKEN`
+   - `TELEGRAM_CHAT_ID`
+   - `TICKETMASTER_API_KEY`
+
+**7A.2 — That's it**
+
+The workflow runs automatically every day at 18:00 UTC (≈ 7:00 PM UK time).
+You can also trigger it manually any time:
+
+1. Go to the **Actions** tab on the GitHub page for this project.
+2. Click **Daily Concert Digest** in the left sidebar.
+3. Click **Run workflow** → **Run workflow**.
+4. After a minute or two, check your Telegram for the digest. You can also
+   click into the run to see its log output (the same messages you'd see
+   in Terminal).
+
+**How "already seen" memory works here:** each run saves its memory to
+GitHub's cache so the next run can restore it. This is reliable but not
+absolutely 100% guaranteed by GitHub (caches can occasionally be evicted),
+so very rarely you might see a repeat entry — better that than missing a
+presale.
+
+### Option B — Railway
+
+Railway is a beginner-friendly cloud hosting service with a free tier and
+no credit card required to start. Use this if you'd prefer an always-on
+server instead of a scheduled job.
 
 Railway will run this project using the included `Dockerfile`, which is
 just a recipe telling Railway how to set up and run the bot — you don't
 need to understand it.
 
-### 7.1 — Push this project to GitHub
+### 7B.1 — Push this project to GitHub
 
 Railway deploys from a GitHub repository. If this project isn't already on
 GitHub, create a new repository on https://github.com and upload this
 project's folder to it (GitHub's website lets you drag-and-drop files if
 you're not comfortable with Git commands).
 
-### 7.2 — Create a Railway project
+### 7B.2 — Create a Railway project
 
 1. Go to https://railway.app and click **Login**, then **sign up with
    GitHub** (free).
@@ -376,7 +418,7 @@ you're not comfortable with Git commands).
 3. Select this project's repository. Railway will detect the `Dockerfile`
    and start building automatically.
 
-### 7.3 — Add your secret keys to Railway
+### 7B.3 — Add your secret keys to Railway
 
 Your `.env` file stays on your computer — you never upload it. Instead, you
 type the same values into Railway's settings:
@@ -396,7 +438,7 @@ type the same values into Railway's settings:
 > small bot continuously. If you ever see it stop, check the **Usage** tab
 > in Railway.
 
-### 7.4 — Keeping the "already seen" memory
+### 7B.4 — Keeping the "already seen" memory
 
 The bot remembers what it's already told you about in a small database file
 inside the `data/` folder. On Railway, this folder lives inside the

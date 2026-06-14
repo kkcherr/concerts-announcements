@@ -1,0 +1,49 @@
+name: Daily Concert Digest
+
+on:
+  schedule:
+    # 18:00 UTC ≈ 19:00 Europe/London in winter (GMT) and 19:00 BST is 18:00 UTC in summer too only
+    # for BST it'd actually be 18:00 UTC = 19:00 BST, and 18:00 UTC = 18:00 GMT in winter.
+    # To stay close to the configured 19:00 Europe/London year-round, this runs at 18:00 UTC.
+    - cron: '0 18 * * *'
+  workflow_dispatch:  # lets you trigger it manually from the GitHub Actions tab
+
+jobs:
+  send-digest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Restore "already seen" database
+        uses: actions/cache@v4
+        with:
+          path: data/state.db
+          key: concert-bot-state-${{ github.run_id }}
+          restore-keys: |
+            concert-bot-state-
+
+      - name: Restore Ticketmaster attraction-id cache
+        uses: actions/cache@v4
+        with:
+          path: data/ticketmaster_attractions.json
+          key: concert-bot-attractions-${{ github.run_id }}
+          restore-keys: |
+            concert-bot-attractions-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Send daily digest
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
+        run: python main.py --run-now
