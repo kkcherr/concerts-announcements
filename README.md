@@ -21,13 +21,11 @@ it's used. Follow the steps in order — each one is small.
 
 Once a day, at a time you choose (default 7:00 PM UK time), the bot:
 
-1. Checks **Ticketmaster** and **Bandsintown** for every artist on your
-   three lists (`must_see`, `legends`, `blockbusters`).
+1. Checks **Ticketmaster** for every artist on your three lists
+   (`must_see`, `legends`, `blockbusters`).
 2. Works out which of those shows were **announced in roughly the last
-   24 hours** — for Ticketmaster, it only asks for events that became
-   publicly visible in that window; for Bandsintown (which doesn't expose
-   an "announced on" date), it relies on its memory of what it's already
-   told you about, so anything new since the last run still gets through.
+   24 hours** — it only asks Ticketmaster for events that became publicly
+   visible in that window.
 3. Sends you **one Telegram message** listing the new shows — UK/Spain
    shows first, marked with a ⭐ **PRIORITY** label — including dates,
    venues, ticket links, and any **presale windows** it knows about.
@@ -169,24 +167,6 @@ free.
 6. You'll see a field called **"Consumer Key"** — that long string is your
    **Ticketmaster API key**. Copy it.
 
-### 2.4 — Bandsintown app id
-
-**What it is, in plain English:** a Bandsintown app id is a free identifier
-that lets this program ask Bandsintown for an artist's upcoming shows
-(Bandsintown doesn't provide presale info, but it can catch shows
-Ticketmaster hasn't listed yet).
-
-**How to get one:**
-
-1. Go to https://app.bandsintown.com/services/api/register and fill in the
-   short registration form (name, email, what you're using it for — "personal
-   concert tracking bot" is fine).
-2. Bandsintown will email you an **app id** (sometimes called "app_id") —
-   a short text string. Copy it.
-
-If you skip this step, the bot will simply skip Bandsintown and keep working
-with Ticketmaster only.
-
 ---
 
 ## Part 3 — Create your `.env` file (where secrets live)
@@ -208,7 +188,6 @@ with Ticketmaster only.
    TELEGRAM_BOT_TOKEN="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
    TELEGRAM_CHAT_ID="your_numeric_chat_id"
    TICKETMASTER_API_KEY="AbCdEfGhIjKlMnOpQrStUvWx"
-   BANDSINTOWN_APP_ID="your_bandsintown_app_id"
    ```
    You don't have your chat id yet — leave that line as-is for now, we'll
    fill it in next (Part 4, Step 4.1).
@@ -276,8 +255,8 @@ as "seen". This is the safest way to check everything works.
 python main.py --dry-run
 ```
 
-**What you should see:** log lines showing it checking Ticketmaster and
-Bandsintown for each artist, followed by either:
+**What you should see:** log lines showing it checking Ticketmaster for
+each artist, followed by either:
 
 - A printed digest with real upcoming shows for your tracked artists, or
 - `(Nothing new today — no message would be sent...)` if there's nothing to
@@ -331,8 +310,8 @@ and restart the bot (or just run `--dry-run` again) to pick up the change.
 - `send_when_empty: false` — change to `true` if you'd like a
   "nothing new today" message every day, even when there's nothing to
   report.
-- `sources: {ticketmaster: true, bandsintown: true}` — turn a source off by
-  changing `true` to `false`.
+- `sources: {ticketmaster: true}` — turn the source off by changing `true`
+  to `false`.
 
 ---
 
@@ -361,13 +340,10 @@ time**, even when your laptop is closed, see Part 7 (deployment).
 
 Press `Ctrl + C` in Terminal to stop it.
 
-### Debugging a single source
-
-If you want to check just one source (useful if one of them seems broken):
+### Debugging the source
 
 ```bash
 python main.py --dry-run --source ticketmaster
-python main.py --dry-run --source bandsintown
 ```
 
 ---
@@ -396,8 +372,6 @@ schedule, for free. This project includes a ready-made one at
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_CHAT_ID`
    - `TICKETMASTER_API_KEY`
-   - `BANDSINTOWN_APP_ID` (optional — if you skip this, Bandsintown is
-     skipped and the bot keeps working with Ticketmaster only)
 
 **7A.2 — That's it**
 
@@ -454,7 +428,6 @@ type the same values into Railway's settings:
    - `TELEGRAM_BOT_TOKEN` → paste your bot token
    - `TELEGRAM_CHAT_ID` → paste your chat id
    - `TICKETMASTER_API_KEY` → paste your Ticketmaster key
-   - `BANDSINTOWN_APP_ID` → paste your Bandsintown app id (optional)
 3. Railway will automatically restart the bot with these values. Your bot
    is now running 24/7 — check your Telegram around your scheduled time
    (default 7:00 PM UK time) the next day.
@@ -484,28 +457,6 @@ Edit `config.yaml` as described in Part 5, then either:
 - **On Railway:** edit `config.yaml`, upload the change to GitHub (Railway
   will redeploy automatically), or edit the file directly in GitHub's web
   editor and Railway will pick it up.
-
-### If Bandsintown stops working
-
-Bandsintown is queried through its official events API using your
-`BANDSINTOWN_APP_ID`. If that app id is ever revoked, rate-limited, or
-missing, you'll see a warning in the logs like:
-
-```
-Bandsintown: BANDSINTOWN_APP_ID not set — skipping
-```
-
-**This is designed to fail safely** — the rest of the bot (including
-Ticketmaster, which is the only source with presale info) **will keep
-working normally**. You won't lose your digest — you'll just temporarily
-miss Bandsintown-only listings.
-
-If this happens for a while:
-
-1. Double-check the `BANDSINTOWN_APP_ID` secret/value is set correctly
-   (Part 2.4 explains how to get one).
-2. You can turn Bandsintown off entirely by setting `bandsintown: false`
-   under `sources:` in `config.yaml`, until it's fixed.
 
 ### Resetting "already seen" history
 
@@ -557,9 +508,8 @@ concert_bot/
   sources/
     base.py              # abstract Source interface
     ticketmaster.py       # Ticketmaster Discovery API v2 (attractions + events + presales)
-    bandsintown.py        # Bandsintown events API source
 main.py                  # CLI: --run-now / --dry-run / --test-alert / --get-chat-id / --source
-tests/                    # pytest tests + fixtures for each source and the aggregator
+tests/                    # pytest tests + fixtures for the source and the aggregator
 ```
 
 Run the tests with:

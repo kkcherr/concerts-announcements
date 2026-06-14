@@ -23,7 +23,7 @@ def _ticketmaster_event(**overrides) -> Event:
     return Event(**base)
 
 
-def _bandsintown_event(**overrides) -> Event:
+def _other_source_event(**overrides) -> Event:
     base = dict(
         artist="Sample Artist",
         event_name="Sample Artist at The O2",
@@ -34,8 +34,8 @@ def _bandsintown_event(**overrides) -> Event:
         event_time="18:30",
         onsale_datetime=None,
         presales=[],
-        source="bandsintown",
-        url="https://www.bandsintown.com/e/event-1",
+        source="other_source",
+        url="https://example.com/e/event-1",
         matched_lists={"must_see"},
     )
     base.update(overrides)
@@ -43,15 +43,15 @@ def _bandsintown_event(**overrides) -> Event:
 
 
 def test_dedupes_same_show_across_sources():
-    events = [_ticketmaster_event(), _bandsintown_event()]
+    events = [_ticketmaster_event(), _other_source_event()]
     merged = aggregate(events, priority_countries=["GB", "ES"])
 
     assert len(merged) == 1
     entry = merged[0]
-    assert set(entry.sources) == {"ticketmaster", "bandsintown"}
+    assert set(entry.sources) == {"ticketmaster", "other_source"}
     assert len(entry.urls) == 2
     assert entry.priority is True
-    # Ticketmaster's presale data should be kept even though the dupe came from Bandsintown.
+    # Ticketmaster's presale data should be kept even though the dupe came from the other source.
     assert len(entry.presales) == 1
     assert entry.presales[0].name == "O2 Priority"
     # matched_lists merged from both sources
@@ -88,7 +88,7 @@ def test_priority_countries_sorted_first():
 
 
 def test_canonical_key_stable_for_same_show():
-    events = [_ticketmaster_event(), _bandsintown_event()]
+    events = [_ticketmaster_event(), _other_source_event()]
     merged = aggregate(events, priority_countries=["GB", "ES"])
     key = merged[0].canonical_key
     assert "sample artist" in key

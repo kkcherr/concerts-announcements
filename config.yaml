@@ -127,17 +127,11 @@ send_when_empty: false
 # Toggle each source on/off.
 sources:
   ticketmaster: true
-  bandsintown: true
 
 # Internal file paths (relative to the project folder).
 paths:
   state_db: "data/state.db"
   ticketmaster_attraction_cache: "data/ticketmaster_attractions.json"
-
-# Bandsintown scraper politeness settings.
-bandsintown:
-  request_delay_seconds: 2.0
-  max_retries: 3
 
 # Ticketmaster API settings.
 ticketmaster:
