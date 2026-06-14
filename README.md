@@ -106,9 +106,9 @@ This will print a lot of text and take a minute or two — that's normal.
 
 ---
 
-## Part 2 — Get your three secret credentials
+## Part 2 — Get your secret credentials
 
-The bot needs three secret pieces of information. **Never share these with
+The bot needs a few secret pieces of information. **Never share these with
 anyone** — they're like passwords. They go into a file called `.env`
 (Part 3 explains how).
 
@@ -169,6 +169,24 @@ free.
 6. You'll see a field called **"Consumer Key"** — that long string is your
    **Ticketmaster API key**. Copy it.
 
+### 2.4 — Bandsintown app id
+
+**What it is, in plain English:** a Bandsintown app id is a free identifier
+that lets this program ask Bandsintown for an artist's upcoming shows
+(Bandsintown doesn't provide presale info, but it can catch shows
+Ticketmaster hasn't listed yet).
+
+**How to get one:**
+
+1. Go to https://app.bandsintown.com/services/api/register and fill in the
+   short registration form (name, email, what you're using it for — "personal
+   concert tracking bot" is fine).
+2. Bandsintown will email you an **app id** (sometimes called "app_id") —
+   a short text string. Copy it.
+
+If you skip this step, the bot will simply skip Bandsintown and keep working
+with Ticketmaster only.
+
 ---
 
 ## Part 3 — Create your `.env` file (where secrets live)
@@ -190,6 +208,7 @@ free.
    TELEGRAM_BOT_TOKEN="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ"
    TELEGRAM_CHAT_ID="your_numeric_chat_id"
    TICKETMASTER_API_KEY="AbCdEfGhIjKlMnOpQrStUvWx"
+   BANDSINTOWN_APP_ID="your_bandsintown_app_id"
    ```
    You don't have your chat id yet — leave that line as-is for now, we'll
    fill it in next (Part 4, Step 4.1).
@@ -377,6 +396,8 @@ schedule, for free. This project includes a ready-made one at
    - `TELEGRAM_BOT_TOKEN`
    - `TELEGRAM_CHAT_ID`
    - `TICKETMASTER_API_KEY`
+   - `BANDSINTOWN_APP_ID` (optional — if you skip this, Bandsintown is
+     skipped and the bot keeps working with Ticketmaster only)
 
 **7A.2 — That's it**
 
@@ -433,6 +454,7 @@ type the same values into Railway's settings:
    - `TELEGRAM_BOT_TOKEN` → paste your bot token
    - `TELEGRAM_CHAT_ID` → paste your chat id
    - `TICKETMASTER_API_KEY` → paste your Ticketmaster key
+   - `BANDSINTOWN_APP_ID` → paste your Bandsintown app id (optional)
 3. Railway will automatically restart the bot with these values. Your bot
    is now running 24/7 — check your Telegram around your scheduled time
    (default 7:00 PM UK time) the next day.
@@ -463,32 +485,27 @@ Edit `config.yaml` as described in Part 5, then either:
   will redeploy automatically), or edit the file directly in GitHub's web
   editor and Railway will pick it up.
 
-### If the Bandsintown scraper stops working
+### If Bandsintown stops working
 
-Bandsintown doesn't offer an official way for this bot to read many
-artists' pages, so this part of the bot reads the same data your web
-browser would load when you visit an artist's Bandsintown page. If
-Bandsintown redesigns their website, this can stop working.
-
-**This is designed to fail safely** — if it breaks, you'll see warning
-messages in the logs like:
+Bandsintown is queried through its official events API using your
+`BANDSINTOWN_APP_ID`. If that app id is ever revoked, rate-limited, or
+missing, you'll see a warning in the logs like:
 
 ```
-Bandsintown: __NEXT_DATA__ block not found in page (site layout may have changed)
+Bandsintown: BANDSINTOWN_APP_ID not set — skipping
 ```
 
-but the rest of the bot (including Ticketmaster, which is the only source
-with presale info) **will keep working normally**. You won't lose your
-digest — you'll just temporarily miss Bandsintown-only listings.
+**This is designed to fail safely** — the rest of the bot (including
+Ticketmaster, which is the only source with presale info) **will keep
+working normally**. You won't lose your digest — you'll just temporarily
+miss Bandsintown-only listings.
 
-If you see this warning every day for a while:
+If this happens for a while:
 
-1. You (or a developer) can turn Bandsintown off entirely by setting
-   `bandsintown: false` under `sources:` in `config.yaml`, until it's fixed.
-2. Fixing it means updating the code in
-   `concert_bot/sources/bandsintown.py` to match Bandsintown's new page
-   structure — this requires a developer, but the rest of the bot is
-   unaffected in the meantime.
+1. Double-check the `BANDSINTOWN_APP_ID` secret/value is set correctly
+   (Part 2.4 explains how to get one).
+2. You can turn Bandsintown off entirely by setting `bandsintown: false`
+   under `sources:` in `config.yaml`, until it's fixed.
 
 ### Resetting "already seen" history
 
@@ -540,7 +557,7 @@ concert_bot/
   sources/
     base.py              # abstract Source interface
     ticketmaster.py       # Ticketmaster Discovery API v2 (attractions + events + presales)
-    bandsintown.py        # Bandsintown artist-page scraper
+    bandsintown.py        # Bandsintown events API source
 main.py                  # CLI: --run-now / --dry-run / --test-alert / --get-chat-id / --source
 tests/                    # pytest tests + fixtures for each source and the aggregator
 ```

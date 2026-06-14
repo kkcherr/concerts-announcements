@@ -1,14 +1,12 @@
 import json
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from concert_bot.sources.bandsintown import (
     BandsintownSource,
-    _collect_artist_candidates,
-    _extract_events,
-    _name_similarity,
+    _country_code,
+    _parse_datetime,
     _parse_event,
-    _validate_artist_page,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -20,110 +18,36 @@ def _load_fixture(name: str) -> dict:
 
 
 class FakeConfig:
+    bandsintown_app_id = "fake-app-id"
+
     class bandsintown:
         request_delay_seconds = 0.0
         max_retries = 3
 
-    class paths:
-        bandsintown_artist_path_cache = "/tmp/does-not-exist-bit-cache.json"
+
+def _source() -> BandsintownSource:
+    return BandsintownSource(FakeConfig())
 
 
-def _source(tmp_path) -> BandsintownSource:
-    config = FakeConfig()
-    config.paths.bandsintown_artist_path_cache = str(tmp_path / "artist_paths.json")
-    return BandsintownSource(config)
+def test_parse_datetime_handles_naive_value():
+    dt = _parse_datetime("2026-06-20T09:00:00")
+    assert dt == datetime(2026, 6, 20, 9, 0, tzinfo=timezone.utc)
 
 
-def test_name_similarity():
-    assert _name_similarity("Sample Artist", "Sample Artist") == 1.0
-    assert _name_similarity("Sample Artist", "Totally Different") < 0.5
+def test_parse_datetime_handles_none():
+    assert _parse_datetime(None) is None
 
 
-def test_collect_artist_candidates_finds_artists_and_skips_events():
-    data = _load_fixture("bandsintown_search.json")
-    candidates = []
-    _collect_artist_candidates(data, candidates)
-
-    names = {name for name, _ in candidates}
-    assert "Sample Artist" in names
-    assert "Sample Artist Tribute Band" in names
-    # The event-like dict (has "datetime"/"venue") should not be collected.
-    assert "Sample Artist at The O2 Arena" not in names
+def test_country_code_normalizes_names():
+    assert _country_code("United Kingdom") == "GB"
+    assert _country_code("Spain") == "ES"
+    assert _country_code("gb") == "GB"
+    assert _country_code("") == ""
 
 
-def test_search_artist_url_picks_best_match(tmp_path, monkeypatch):
-    source = _source(tmp_path)
-
-    html = (
-        '<script id="__NEXT_DATA__" type="application/json">'
-        + json.dumps(_load_fixture("bandsintown_search.json"))
-        + "</script>"
-    )
-
-    class FakeResponse:
-        status_code = 200
-        text = html
-
-        def raise_for_status(self):
-            pass
-
-    monkeypatch.setattr(
-        "concert_bot.sources.bandsintown.requests.get",
-        lambda url, headers=None, timeout=None: FakeResponse(),
-    )
-
-    url = source._search_artist_url("Sample Artist")
-
-    assert url == "https://www.bandsintown.com/a/12345-sample-artist"
-
-
-def test_resolve_artist_url_caches_result(tmp_path, monkeypatch):
-    source = _source(tmp_path)
-
-    calls = []
-
-    def fake_search(self, artist):
-        calls.append(artist)
-        return "https://www.bandsintown.com/a/12345-sample-artist"
-
-    monkeypatch.setattr(BandsintownSource, "_search_artist_url", fake_search)
-
-    first = source._resolve_artist_url("Sample Artist")
-    second = source._resolve_artist_url("Sample Artist")
-
-    assert first == "https://www.bandsintown.com/a/12345-sample-artist"
-    assert second == first
-    assert calls == ["Sample Artist"]
-
-    # A fresh source instance reading the same cache file should not need to search again.
-    source2 = BandsintownSource(FakeConfig())
-    source2.path_cache_path = source.path_cache_path
-    source2._path_cache = source2._load_path_cache()
-    monkeypatch.setattr(BandsintownSource, "_search_artist_url", fake_search)
-    assert source2._resolve_artist_url("Sample Artist") == first
-    assert calls == ["Sample Artist"]
-
-
-def test_validate_artist_page_accepts_matching_artist():
-    data = _load_fixture("bandsintown_next_data.json")
-    assert _validate_artist_page(data, "Sample Artist") is True
-    assert _validate_artist_page(data, "Some Other Artist") is False
-
-
-def test_extract_events_finds_all_events():
-    data = _load_fixture("bandsintown_next_data.json")
-    events = _extract_events(data)
-    assert len(events) == 2
-    titles = {e["title"] for e in events}
-    assert titles == {"Sample Artist at The O2 Arena", "Sample Artist at Wizink Center"}
-
-
-def test_parse_event_normalizes_country_and_date():
-    data = _load_fixture("bandsintown_next_data.json")
-    raw_events = _extract_events(data)
-    london_event = next(e for e in raw_events if "O2" in e["title"])
-
-    event = _parse_event(london_event, "Sample Artist", {"must_see"})
+def test_parse_event_with_onsale_and_offers():
+    data = _load_fixture("bandsintown_events.json")
+    event = _parse_event(data[0], "Sample Artist", {"must_see"})
 
     assert event.artist == "Sample Artist"
     assert event.venue == "The O2 Arena"
@@ -131,23 +55,61 @@ def test_parse_event_normalizes_country_and_date():
     assert event.country == "GB"
     assert event.event_date == date(2026, 9, 12)
     assert event.event_time == "18:30"
+    assert event.onsale_datetime == datetime(2026, 6, 20, 9, 0, tzinfo=timezone.utc)
     assert event.presales == []
-    assert event.onsale_datetime is None
     assert event.url == "https://www.bandsintown.com/e/event-1"
     assert event.matched_lists == {"must_see"}
 
 
-def test_parse_event_spain_country_code():
-    data = _load_fixture("bandsintown_next_data.json")
-    raw_events = _extract_events(data)
-    madrid_event = next(e for e in raw_events if "Wizink" in e["title"])
-
-    event = _parse_event(madrid_event, "Sample Artist", {"legends"})
+def test_parse_event_without_onsale_or_offers():
+    data = _load_fixture("bandsintown_events.json")
+    event = _parse_event(data[1], "Sample Artist", {"legends"})
 
     assert event.country == "ES"
     assert event.city == "Madrid"
+    assert event.onsale_datetime is None
+    assert event.url == "https://www.bandsintown.com/e/event-2"
 
 
-def test_extract_events_on_malformed_data_returns_empty():
-    assert _extract_events({"foo": "bar"}) == []
-    assert _extract_events({}) == []
+def test_fetch_artist_events_returns_none_on_404(monkeypatch):
+    source = _source()
+
+    class FakeResponse:
+        status_code = 404
+
+    monkeypatch.setattr(
+        "concert_bot.sources.bandsintown.requests.get",
+        lambda url, params=None, timeout=None: FakeResponse(),
+    )
+
+    assert source._fetch_artist_events("Unknown Artist") is None
+
+
+def test_fetch_artist_events_returns_list(monkeypatch):
+    source = _source()
+    data = _load_fixture("bandsintown_events.json")
+
+    class FakeResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return data
+
+    monkeypatch.setattr(
+        "concert_bot.sources.bandsintown.requests.get",
+        lambda url, params=None, timeout=None: FakeResponse(),
+    )
+
+    events = source._fetch_artist_events("Sample Artist")
+    assert events == data
+
+
+def test_fetch_events_skips_when_no_app_id():
+    class NoAppIdConfig(FakeConfig):
+        bandsintown_app_id = ""
+
+    source = BandsintownSource(NoAppIdConfig())
+    assert source.fetch_events({"Sample Artist": {"must_see"}}) == []

@@ -38,14 +38,6 @@ jobs:
           restore-keys: |
             concert-bot-attractions-
 
-      - name: Restore Bandsintown artist-page cache
-        uses: actions/cache@v4
-        with:
-          path: data/bandsintown_artist_paths.json
-          key: concert-bot-bandsintown-paths-${{ github.run_id }}
-          restore-keys: |
-            concert-bot-bandsintown-paths-
-
       - name: Install dependencies
         run: pip install -r requirements.txt
 
@@ -54,4 +46,5 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_API_KEY }}
+          BANDSINTOWN_APP_ID: ${{ secrets.BANDSINTOWN_APP_ID }}
         run: python main.py --run-now

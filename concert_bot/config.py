@@ -23,7 +23,6 @@ DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.yaml"
 class Paths:
     state_db: str = "data/state.db"
     ticketmaster_attraction_cache: str = "data/ticketmaster_attractions.json"
-    bandsintown_artist_path_cache: str = "data/bandsintown_artist_paths.json"
 
 
 @dataclass
@@ -53,6 +52,7 @@ class Config:
 
     # Secrets, read from the environment.
     ticketmaster_api_key: str = field(default="")
+    bandsintown_app_id: str = field(default="")
     telegram_bot_token: str = field(default="")
     telegram_chat_id: str = field(default="")
 
@@ -72,9 +72,6 @@ def load_config(path: str | Path = DEFAULT_CONFIG_PATH) -> Config:
         state_db=paths_raw.get("state_db", Paths.state_db),
         ticketmaster_attraction_cache=paths_raw.get(
             "ticketmaster_attraction_cache", Paths.ticketmaster_attraction_cache
-        ),
-        bandsintown_artist_path_cache=paths_raw.get(
-            "bandsintown_artist_path_cache", Paths.bandsintown_artist_path_cache
         ),
     )
 
@@ -108,6 +105,7 @@ def load_config(path: str | Path = DEFAULT_CONFIG_PATH) -> Config:
         ticketmaster=ticketmaster,
         bandsintown=bandsintown,
         ticketmaster_api_key=os.getenv("TICKETMASTER_API_KEY", ""),
+        bandsintown_app_id=os.getenv("BANDSINTOWN_APP_ID", ""),
         telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
         telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
     )
