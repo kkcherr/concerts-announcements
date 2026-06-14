@@ -136,17 +136,21 @@ account on Telegram.
 ### 2.2 — Telegram chat id
 
 **What it is, in plain English:** your chat id is a number that tells the
-bot *which conversation* to send messages to — i.e., which Telegram account
-is "you".
+bot *which conversation* to send messages to — this can be a private chat
+with you, or a channel.
 
-**How to get one:** we'll use the bot itself to find this out.
+**How to get one:** we'll use the bot itself to find this out, in Part 4.
+For now, just get the bot connected to where you want the digest sent:
 
-1. In Telegram, find the bot you just created (search for the username you
-   chose, e.g. `kk_concert_alerts_bot`) and tap **Start** so it can message
-   you.
-2. We'll come back to actually fetching the chat id in Part 4, after your
-   `.env` file has the bot token in it (Part 3). For now, just remember
-   you've started a chat with your bot.
+- **Private chat with your bot:** in Telegram, find the bot you just
+  created (search for the username you chose, e.g.
+  `kk_concert_alerts_bot`) and tap **Start** so it can message you.
+- **A channel:** create (or pick) a Telegram channel, open its settings →
+  **Administrators** → **Add Admin**, and add your bot there with at least
+  "Post Messages" permission.
+
+We'll come back to actually fetching the chat id in Part 4, after your
+`.env` file has the bot token in it (Part 3).
 
 ### 2.3 — Ticketmaster API key
 
@@ -211,14 +215,23 @@ Run:
 python main.py --get-chat-id
 ```
 
-You'll see a message saying it's waiting. Now, in Telegram, open the chat
-with **your bot** and send the message `/start`. Within a few seconds,
-Terminal will print your numeric chat id, e.g.:
+You'll see a message saying it's waiting. Now:
+
+- **Private chat:** in Telegram, open the chat with **your bot** and send
+  the message `/start`.
+- **Channel:** post anything in the channel (make sure the bot was added
+  as an admin first, per Part 2.2).
+
+Within a few seconds, Terminal will print the chat id, e.g.:
 
 ```
 Your Telegram chat id is: 987654321
 Add this to your .env file as TELEGRAM_CHAT_ID
 ```
+
+For a channel, this number will be **negative** and longer, e.g.
+`-1001234567890` — that's normal, copy it exactly as printed (including the
+minus sign).
 
 Copy that number, open `.env` again, and set:
 
@@ -226,7 +239,7 @@ Copy that number, open `.env` again, and set:
 TELEGRAM_CHAT_ID="987654321"
 ```
 
-Save the file.
+(or `TELEGRAM_CHAT_ID="-1001234567890"` for a channel). Save the file.
 
 ### Step 4.2 — Send a test alert
 
