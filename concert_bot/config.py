@@ -23,6 +23,7 @@ DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.yaml"
 class Paths:
     state_db: str = "data/state.db"
     ticketmaster_attraction_cache: str = "data/ticketmaster_attractions.json"
+    bandsintown_artist_path_cache: str = "data/bandsintown_artist_paths.json"
 
 
 @dataclass
@@ -71,6 +72,9 @@ def load_config(path: str | Path = DEFAULT_CONFIG_PATH) -> Config:
         state_db=paths_raw.get("state_db", Paths.state_db),
         ticketmaster_attraction_cache=paths_raw.get(
             "ticketmaster_attraction_cache", Paths.ticketmaster_attraction_cache
+        ),
+        bandsintown_artist_path_cache=paths_raw.get(
+            "bandsintown_artist_path_cache", Paths.bandsintown_artist_path_cache
         ),
     )
 

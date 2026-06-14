@@ -3,9 +3,11 @@ from datetime import date
 from pathlib import Path
 
 from concert_bot.sources.bandsintown import (
+    BandsintownSource,
+    _collect_artist_candidates,
     _extract_events,
+    _name_similarity,
     _parse_event,
-    _slugify,
     _validate_artist_page,
 )
 
@@ -17,10 +19,89 @@ def _load_fixture(name: str) -> dict:
         return json.load(f)
 
 
-def test_slugify():
-    assert _slugify("Sample Artist") == "sample-artist"
-    assert _slugify("Florence + The Machine") == "florence-the-machine"
-    assert _slugify("AC/DC") == "ac-dc"
+class FakeConfig:
+    class bandsintown:
+        request_delay_seconds = 0.0
+        max_retries = 3
+
+    class paths:
+        bandsintown_artist_path_cache = "/tmp/does-not-exist-bit-cache.json"
+
+
+def _source(tmp_path) -> BandsintownSource:
+    config = FakeConfig()
+    config.paths.bandsintown_artist_path_cache = str(tmp_path / "artist_paths.json")
+    return BandsintownSource(config)
+
+
+def test_name_similarity():
+    assert _name_similarity("Sample Artist", "Sample Artist") == 1.0
+    assert _name_similarity("Sample Artist", "Totally Different") < 0.5
+
+
+def test_collect_artist_candidates_finds_artists_and_skips_events():
+    data = _load_fixture("bandsintown_search.json")
+    candidates = []
+    _collect_artist_candidates(data, candidates)
+
+    names = {name for name, _ in candidates}
+    assert "Sample Artist" in names
+    assert "Sample Artist Tribute Band" in names
+    # The event-like dict (has "datetime"/"venue") should not be collected.
+    assert "Sample Artist at The O2 Arena" not in names
+
+
+def test_search_artist_url_picks_best_match(tmp_path, monkeypatch):
+    source = _source(tmp_path)
+
+    html = (
+        '<script id="__NEXT_DATA__" type="application/json">'
+        + json.dumps(_load_fixture("bandsintown_search.json"))
+        + "</script>"
+    )
+
+    class FakeResponse:
+        status_code = 200
+        text = html
+
+        def raise_for_status(self):
+            pass
+
+    monkeypatch.setattr(
+        "concert_bot.sources.bandsintown.requests.get",
+        lambda url, headers=None, timeout=None: FakeResponse(),
+    )
+
+    url = source._search_artist_url("Sample Artist")
+
+    assert url == "https://www.bandsintown.com/a/12345-sample-artist"
+
+
+def test_resolve_artist_url_caches_result(tmp_path, monkeypatch):
+    source = _source(tmp_path)
+
+    calls = []
+
+    def fake_search(self, artist):
+        calls.append(artist)
+        return "https://www.bandsintown.com/a/12345-sample-artist"
+
+    monkeypatch.setattr(BandsintownSource, "_search_artist_url", fake_search)
+
+    first = source._resolve_artist_url("Sample Artist")
+    second = source._resolve_artist_url("Sample Artist")
+
+    assert first == "https://www.bandsintown.com/a/12345-sample-artist"
+    assert second == first
+    assert calls == ["Sample Artist"]
+
+    # A fresh source instance reading the same cache file should not need to search again.
+    source2 = BandsintownSource(FakeConfig())
+    source2.path_cache_path = source.path_cache_path
+    source2._path_cache = source2._load_path_cache()
+    monkeypatch.setattr(BandsintownSource, "_search_artist_url", fake_search)
+    assert source2._resolve_artist_url("Sample Artist") == first
+    assert calls == ["Sample Artist"]
 
 
 def test_validate_artist_page_accepts_matching_artist():
