@@ -18,7 +18,6 @@ MAX_MESSAGE_LENGTH = 4096
 
 SOURCE_LABELS = {
     "ticketmaster": "Ticketmaster",
-    "bandsintown": "Bandsintown",
 }
 
 PRIORITY_MARKER = "🔝 PRIORITY (UK/Spain)"

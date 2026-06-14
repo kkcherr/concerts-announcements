@@ -6,7 +6,7 @@ Usage:
     python main.py --dry-run       Like --run-now, but print the digest instead of sending it
     python main.py --test-alert    Send one sample digest message to Telegram
     python main.py --get-chat-id   Wait for a /start message and print your chat id
-    python main.py --source NAME   Only run a single source (ticketmaster|bandsintown)
+    python main.py --source NAME   Only run a single source (ticketmaster)
 """
 
 from __future__ import annotations
@@ -18,7 +18,6 @@ import sys
 from concert_bot.aggregator import aggregate
 from concert_bot.config import Config, all_tracked_artists, artist_to_lists, load_config
 from concert_bot.models import MergedEvent
-from concert_bot.sources.bandsintown import BandsintownSource
 from concert_bot.sources.base import Source
 from concert_bot.sources.ticketmaster import TicketmasterSource
 from concert_bot.state import StateStore
@@ -36,8 +35,6 @@ def build_sources(config: Config) -> list[Source]:
     sources: list[Source] = []
     if config.sources.get("ticketmaster", True):
         sources.append(TicketmasterSource(config))
-    if config.sources.get("bandsintown", True):
-        sources.append(BandsintownSource(config))
     return sources
 
 
@@ -113,7 +110,7 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true", help="Print the digest instead of sending it")
     parser.add_argument("--test-alert", action="store_true", help="Send one sample digest message to Telegram")
     parser.add_argument("--get-chat-id", action="store_true", help="Wait for a /start message and print your chat id")
-    parser.add_argument("--source", choices=["ticketmaster", "bandsintown"], help="Only run this source")
+    parser.add_argument("--source", choices=["ticketmaster"], help="Only run this source")
     parser.add_argument("--config", default=None, help="Path to config.yaml")
     args = parser.parse_args()
 
