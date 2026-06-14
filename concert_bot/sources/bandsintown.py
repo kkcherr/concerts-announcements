@@ -99,6 +99,7 @@ class BandsintownSource(Source):
         artist_url = self._search_artist_url(artist)
         self._path_cache[cache_key] = artist_url
         self._save_path_cache()
+        time.sleep(self.request_delay)
         return artist_url
 
     def _search_artist_url(self, artist: str) -> str | None:
