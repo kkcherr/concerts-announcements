@@ -38,6 +38,14 @@ jobs:
           restore-keys: |
             concert-bot-attractions-
 
+      - name: Restore Bandsintown artist-page cache
+        uses: actions/cache@v4
+        with:
+          path: data/bandsintown_artist_paths.json
+          key: concert-bot-bandsintown-paths-${{ github.run_id }}
+          restore-keys: |
+            concert-bot-bandsintown-paths-
+
       - name: Install dependencies
         run: pip install -r requirements.txt
 

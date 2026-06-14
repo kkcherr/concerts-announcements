@@ -2,9 +2,15 @@
 
 Bandsintown does not offer a usable public API for tracking many artists
 (the official REST API requires a registered app_id and is heavily
-rate-limited), so instead we fetch each tracked artist's public page at
-bandsintown.com and parse the JSON payload the page itself loads
-(a Next.js `__NEXT_DATA__` blob containing the artist's upcoming events).
+rate-limited), so instead we:
+
+1. Use Bandsintown's own search page to resolve an artist name to their
+   canonical artist page URL (Bandsintown artist URLs include a numeric
+   id, e.g. `/a/1837895-taylor-swift`, which can't be guessed from the
+   name alone). This result is cached locally so we only search once per
+   artist.
+2. Fetch that artist page and parse the JSON payload the page itself loads
+   (a Next.js `__NEXT_DATA__` blob containing the artist's upcoming events).
 
 This source provides no presale information.
 
@@ -20,18 +26,25 @@ import logging
 import re
 import time
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
+from pathlib import Path
 
 import requests
 
 from concert_bot.config import Config
-from concert_bot.models import Event
+from concert_bot.models import Event, normalize_text
 from concert_bot.sources.base import Source
 
 log = logging.getLogger(__name__)
 
 SOURCE_NAME = "bandsintown"
 
-BASE_URL = "https://www.bandsintown.com/a/{slug}"
+SEARCH_URL = "https://www.bandsintown.com/search?q={query}"
+ARTIST_URL_PREFIX = "https://www.bandsintown.com"
+
+# How similar (0.0-1.0) a search result's name needs to be to the artist
+# we're looking for, before we trust it's the right artist page.
+NAME_MATCH_THRESHOLD = 0.85
 
 HEADERS = {
     "User-Agent": (
@@ -54,23 +67,104 @@ class BandsintownSource(Source):
     def __init__(self, config: Config):
         self.request_delay = config.bandsintown.request_delay_seconds
         self.max_retries = config.bandsintown.max_retries
+        self.path_cache_path = Path(config.paths.bandsintown_artist_path_cache)
+        self._path_cache = self._load_path_cache()
+
+    # ------------------------------------------------------------------
+    # Artist URL cache
+    # ------------------------------------------------------------------
+
+    def _load_path_cache(self) -> dict[str, str | None]:
+        if self.path_cache_path.exists():
+            try:
+                with open(self.path_cache_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, OSError) as exc:
+                log.warning("Bandsintown: failed to read artist URL cache (%s)", exc)
+        return {}
+
+    def _save_path_cache(self) -> None:
+        try:
+            self.path_cache_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.path_cache_path, "w", encoding="utf-8") as f:
+                json.dump(self._path_cache, f, indent=2, sort_keys=True)
+        except OSError as exc:
+            log.warning("Bandsintown: failed to write artist URL cache (%s)", exc)
+
+    def _resolve_artist_url(self, artist: str) -> str | None:
+        cache_key = artist.strip().lower()
+        if cache_key in self._path_cache:
+            return self._path_cache[cache_key]
+
+        artist_url = self._search_artist_url(artist)
+        self._path_cache[cache_key] = artist_url
+        self._save_path_cache()
+        return artist_url
+
+    def _search_artist_url(self, artist: str) -> str | None:
+        url = SEARCH_URL.format(query=requests.utils.quote(artist))
+        html = self._get_html(url, artist, "search")
+        if html is None:
+            return None
+
+        data = _parse_next_data(html)
+        if data is None:
+            return None
+
+        candidates: list[tuple[str, str]] = []
+        _collect_artist_candidates(data, candidates)
+
+        best_url = None
+        best_score = 0.0
+        for name, candidate_url in candidates:
+            score = _name_similarity(name, artist)
+            if score > best_score:
+                best_score = score
+                best_url = candidate_url
+
+        if best_url and best_score >= NAME_MATCH_THRESHOLD:
+            if best_url.startswith("/"):
+                best_url = ARTIST_URL_PREFIX + best_url
+            return best_url
+
+        log.warning("Bandsintown: no matching artist page found for %r", artist)
+        return None
+
+    # ------------------------------------------------------------------
+    # Events
+    # ------------------------------------------------------------------
 
     def fetch_events(self, artist_to_lists: dict[str, set[str]]) -> list[Event]:
         events: list[Event] = []
 
         for artist, matched_lists in artist_to_lists.items():
             try:
-                page_data = self._fetch_artist_page(artist)
+                artist_url = self._resolve_artist_url(artist)
+            except Exception as exc:
+                log.warning("Bandsintown: failed to resolve a page for %r: %s", artist, exc)
+                time.sleep(self.request_delay)
+                continue
+
+            if not artist_url:
+                time.sleep(self.request_delay)
+                continue
+
+            try:
+                html = self._get_html(artist_url, artist, "artist page")
             except Exception as exc:
                 log.warning("Bandsintown: failed to fetch page for %r: %s", artist, exc)
                 time.sleep(self.request_delay)
                 continue
 
-            if page_data is None:
+            if html is None:
                 time.sleep(self.request_delay)
                 continue
 
             try:
+                page_data = _parse_next_data(html)
+                if page_data is None:
+                    continue
+
                 if not _validate_artist_page(page_data, artist):
                     log.warning(
                         "Bandsintown: page for %r doesn't look like a valid artist page — skipping",
@@ -99,10 +193,8 @@ class BandsintownSource(Source):
         log.info("Bandsintown: fetched %d event(s)", len(events))
         return events
 
-    def _fetch_artist_page(self, artist: str) -> dict | None:
-        slug = _slugify(artist)
-        url = BASE_URL.format(slug=slug)
-
+    def _get_html(self, url: str, artist: str, what: str) -> str | None:
+        """GET a page with retries/backoff. Returns None (and logs) on 404/429/repeated errors."""
         delay = self.request_delay
         for attempt in range(1, self.max_retries + 1):
             try:
@@ -111,8 +203,8 @@ class BandsintownSource(Source):
                 if attempt == self.max_retries:
                     raise
                 log.warning(
-                    "Bandsintown: request error for %r (attempt %d/%d): %s — retrying",
-                    artist, attempt, self.max_retries, exc,
+                    "Bandsintown: request error fetching %s for %r (attempt %d/%d): %s — retrying",
+                    what, artist, attempt, self.max_retries, exc,
                 )
                 time.sleep(delay)
                 delay *= 2
@@ -120,30 +212,31 @@ class BandsintownSource(Source):
 
             if resp.status_code == 429:
                 if attempt == self.max_retries:
-                    log.warning("Bandsintown: rate limited for %r — giving up", artist)
+                    log.warning("Bandsintown: rate limited fetching %s for %r — giving up", what, artist)
                     return None
                 log.warning(
-                    "Bandsintown: rate limited (429) for %r — backing off %.1fs",
-                    artist, delay,
+                    "Bandsintown: rate limited (429) fetching %s for %r — backing off %.1fs",
+                    what, artist, delay,
                 )
                 time.sleep(delay)
                 delay *= 2
                 continue
 
             if resp.status_code == 404:
-                log.warning("Bandsintown: no page found for %r (404)", artist)
+                log.warning("Bandsintown: no %s found for %r (404)", what, artist)
                 return None
 
             resp.raise_for_status()
-            return _parse_next_data(resp.text)
+            return resp.text
 
         return None
 
 
-def _slugify(artist: str) -> str:
-    slug = artist.strip().lower()
-    slug = re.sub(r"[^a-z0-9]+", "-", slug)
-    return slug.strip("-")
+def _name_similarity(a: str, b: str) -> float:
+    a, b = normalize_text(a), normalize_text(b)
+    if not a or not b:
+        return 0.0
+    return SequenceMatcher(None, a, b).ratio()
 
 
 def _parse_next_data(html: str) -> dict | None:
@@ -156,6 +249,26 @@ def _parse_next_data(html: str) -> dict | None:
     except json.JSONDecodeError as exc:
         log.warning("Bandsintown: __NEXT_DATA__ block is not valid JSON: %s", exc)
         return None
+
+
+def _collect_artist_candidates(node, results: list[tuple[str, str]]) -> None:
+    """Recursively find artist-like dicts: objects with 'name' and an '/a/...' url."""
+    if isinstance(node, dict):
+        name = node.get("name")
+        url = node.get("url") or node.get("pageUrl")
+        if (
+            isinstance(name, str)
+            and isinstance(url, str)
+            and "/a/" in url
+            and "datetime" not in node
+            and "venue" not in node
+        ):
+            results.append((name, url))
+        for value in node.values():
+            _collect_artist_candidates(value, results)
+    elif isinstance(node, list):
+        for item in node:
+            _collect_artist_candidates(item, results)
 
 
 def _validate_artist_page(page_data: dict, artist: str) -> bool:

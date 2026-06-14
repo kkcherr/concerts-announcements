@@ -133,6 +133,7 @@ sources:
 paths:
   state_db: "data/state.db"
   ticketmaster_attraction_cache: "data/ticketmaster_attractions.json"
+  bandsintown_artist_path_cache: "data/bandsintown_artist_paths.json"
 
 # Bandsintown scraper politeness settings.
 bandsintown:
