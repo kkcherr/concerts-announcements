@@ -88,20 +88,27 @@ class TelegramSender:
     # ------------------------------------------------------------------
 
     def run_get_chat_id(self) -> None:
-        """Poll for updates and print the chat id of any /start message received.
+        """Poll for updates and print the chat id of a /start message or channel post.
 
-        This is a tiny helper for first-time setup: run it, then send /start
-        to your bot in Telegram, and your chat id will be printed here.
+        This is a tiny helper for first-time setup:
+        - For a private chat with your bot: run this, then send /start to your
+          bot in Telegram, and your chat id will be printed here.
+        - For a channel: add your bot to the channel as an admin (with "Post
+          Messages" permission), then post anything in the channel — its chat
+          id (a negative number like -100xxxxxxxxxx) will be printed here.
         """
-        print("Waiting for a message... open Telegram, find your bot, and send /start")
+        print("Waiting for a message...")
+        print("- Private chat: open Telegram, find your bot, and send /start")
+        print("- Channel: add the bot as an admin, then post anything in the channel")
         print("(Press Ctrl+C to stop)")
 
         url = TELEGRAM_API.format(token=self.bot_token, method="getUpdates")
         offset = None
+        import json
         import time
 
         while True:
-            params = {"timeout": 30}
+            params = {"timeout": 30, "allowed_updates": json.dumps(["message", "channel_post"])}
             if offset is not None:
                 params["offset"] = offset
             try:
@@ -115,6 +122,16 @@ class TelegramSender:
 
             for update in data.get("result", []):
                 offset = update["update_id"] + 1
+
+                channel_post = update.get("channel_post")
+                if channel_post is not None:
+                    chat = channel_post.get("chat", {})
+                    chat_id = chat.get("id")
+                    if chat_id is not None:
+                        print(f"\nYour Telegram channel's chat id is: {chat_id}")
+                        print("Add this to your .env file as TELEGRAM_CHAT_ID")
+                        return
+
                 message = update.get("message", {})
                 text = message.get("text", "")
                 chat = message.get("chat", {})
