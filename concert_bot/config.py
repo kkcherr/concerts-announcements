@@ -33,12 +33,6 @@ class TicketmasterConfig:
 
 
 @dataclass
-class BandsintownConfig:
-    request_delay_seconds: float = 2.0
-    max_retries: int = 3
-
-
-@dataclass
 class Config:
     artist_lists: dict[str, list[str]]
     priority_countries: list[str]
@@ -48,11 +42,9 @@ class Config:
     sources: dict[str, bool]
     paths: Paths
     ticketmaster: TicketmasterConfig
-    bandsintown: BandsintownConfig
 
     # Secrets, read from the environment.
     ticketmaster_api_key: str = field(default="")
-    bandsintown_app_id: str = field(default="")
     telegram_bot_token: str = field(default="")
     telegram_chat_id: str = field(default="")
 
@@ -86,26 +78,16 @@ def load_config(path: str | Path = DEFAULT_CONFIG_PATH) -> Config:
         ),
     )
 
-    bit_raw = raw.get("bandsintown", {})
-    bandsintown = BandsintownConfig(
-        request_delay_seconds=float(
-            bit_raw.get("request_delay_seconds", BandsintownConfig.request_delay_seconds)
-        ),
-        max_retries=int(bit_raw.get("max_retries", BandsintownConfig.max_retries)),
-    )
-
     return Config(
         artist_lists=artist_lists,
         priority_countries=[c.upper() for c in raw.get("priority_countries", ["GB", "ES"])],
         daily_run_time=str(raw.get("daily_run_time", "19:00")),
         timezone=raw.get("timezone", "Europe/London"),
         send_when_empty=bool(raw.get("send_when_empty", False)),
-        sources=raw.get("sources", {"ticketmaster": True, "bandsintown": True}),
+        sources=raw.get("sources", {"ticketmaster": True}),
         paths=paths,
         ticketmaster=ticketmaster,
-        bandsintown=bandsintown,
         ticketmaster_api_key=os.getenv("TICKETMASTER_API_KEY", ""),
-        bandsintown_app_id=os.getenv("BANDSINTOWN_APP_ID", ""),
         telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
         telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
     )
