@@ -1,5 +1,5 @@
 import json
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from concert_bot.sources.ticketmaster import TicketmasterSource, _parse_date, _parse_datetime
@@ -18,6 +18,7 @@ class FakeConfig:
     class ticketmaster:
         events_page_size = 50
         request_delay_seconds = 0.0
+        announcement_lookback_hours = 26
 
     class paths:
         ticketmaster_attraction_cache = "/tmp/does-not-exist-tm-cache.json"
@@ -74,6 +75,32 @@ def test_parse_event_with_no_presales(tmp_path):
     assert event.presales == []
     assert event.country == "US"
     assert event.city == "New York"
+
+
+def test_fetch_events_filters_by_recent_announcement(tmp_path, monkeypatch):
+    source = _source(tmp_path)
+
+    captured_params = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"_embedded": {"events": []}, "page": {"totalPages": 1}}
+
+    def fake_get(url, params=None, timeout=None):
+        captured_params.update(params)
+        return FakeResponse()
+
+    monkeypatch.setattr("concert_bot.sources.ticketmaster.requests.get", fake_get)
+
+    source._fetch_events_for_attraction("K8vZ9171Ki0")
+
+    assert "publicVisibilityStartDateTime" in captured_params
+    cutoff = datetime.fromisoformat(captured_params["publicVisibilityStartDateTime"].replace("Z", "+00:00"))
+    expected = datetime.now(timezone.utc) - timedelta(hours=26)
+    assert abs((cutoff - expected).total_seconds()) < 5
 
 
 def test_attraction_cache_round_trip(tmp_path, monkeypatch):

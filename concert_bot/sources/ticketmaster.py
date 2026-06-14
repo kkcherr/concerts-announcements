@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import time
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
@@ -39,6 +39,7 @@ class TicketmasterSource(Source):
         self.api_key = config.ticketmaster_api_key
         self.page_size = config.ticketmaster.events_page_size
         self.request_delay = config.ticketmaster.request_delay_seconds
+        self.announcement_lookback_hours = config.ticketmaster.announcement_lookback_hours
         self.cache_path = Path(config.paths.ticketmaster_attraction_cache)
         self._cache = self._load_cache()
 
@@ -144,6 +145,9 @@ class TicketmasterSource(Source):
     def _fetch_events_for_attraction(self, attraction_id: str) -> list[dict]:
         events: list[dict] = []
         page = 0
+        visibility_cutoff = _format_datetime(
+            datetime.now(timezone.utc) - timedelta(hours=self.announcement_lookback_hours)
+        )
         while True:
             params = {
                 "apikey": self.api_key,
@@ -151,6 +155,10 @@ class TicketmasterSource(Source):
                 "size": self.page_size,
                 "page": page,
                 "sort": "date,asc",
+                # Only return events Ticketmaster made publicly visible (i.e. announced)
+                # within the lookback window, so the daily digest only contains
+                # genuinely new announcements.
+                "publicVisibilityStartDateTime": visibility_cutoff,
             }
             resp = requests.get(f"{BASE_URL}/events.json", params=params, timeout=15)
             resp.raise_for_status()
@@ -210,6 +218,11 @@ class TicketmasterSource(Source):
             url=raw.get("url", ""),
             matched_lists=set(matched_lists),
         )
+
+
+def _format_datetime(value: datetime) -> str:
+    """Format a UTC datetime as Ticketmaster expects, e.g. '2026-06-13T19:00:00Z'."""
+    return value.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _parse_date(value: str | None) -> date | None:

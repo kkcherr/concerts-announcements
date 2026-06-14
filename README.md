@@ -23,8 +23,11 @@ Once a day, at a time you choose (default 7:00 PM UK time), the bot:
 
 1. Checks **Ticketmaster** and **Bandsintown** for every artist on your
    three lists (`must_see`, `legends`, `blockbusters`).
-2. Works out which of those shows are **brand new** (it remembers what it
-   already told you about).
+2. Works out which of those shows were **announced in roughly the last
+   24 hours** — for Ticketmaster, it only asks for events that became
+   publicly visible in that window; for Bandsintown (which doesn't expose
+   an "announced on" date), it relies on its memory of what it's already
+   told you about, so anything new since the last run still gets through.
 3. Sends you **one Telegram message** listing the new shows — UK/Spain
    shows first, marked with a ⭐ **PRIORITY** label — including dates,
    venues, ticket links, and any **presale windows** it knows about.

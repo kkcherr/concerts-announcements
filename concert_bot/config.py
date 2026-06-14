@@ -29,6 +29,7 @@ class Paths:
 class TicketmasterConfig:
     events_page_size: int = 50
     request_delay_seconds: float = 0.25
+    announcement_lookback_hours: int = 26
 
 
 @dataclass
@@ -78,6 +79,9 @@ def load_config(path: str | Path = DEFAULT_CONFIG_PATH) -> Config:
         events_page_size=int(tm_raw.get("events_page_size", TicketmasterConfig.events_page_size)),
         request_delay_seconds=float(
             tm_raw.get("request_delay_seconds", TicketmasterConfig.request_delay_seconds)
+        ),
+        announcement_lookback_hours=int(
+            tm_raw.get("announcement_lookback_hours", TicketmasterConfig.announcement_lookback_hours)
         ),
     )
 
