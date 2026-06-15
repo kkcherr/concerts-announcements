@@ -138,6 +138,8 @@ ticketmaster:
   events_page_size: 50
   request_delay_seconds: 0.25
   # Only fetch events Ticketmaster made publicly visible (i.e. announced) within
-  # this many hours. The bot runs daily, so 24h plus a small buffer covers a full
-  # day even if the run is a little late.
-  announcement_lookback_hours: 26
+  # this many hours. The bot runs daily, but GitHub's scheduled runs can be
+  # delayed or occasionally skipped, so this looks back several days to give
+  # an overlap — the "already seen" state store prevents duplicate messages
+  # for events reported on a previous run.
+  announcement_lookback_hours: 96
