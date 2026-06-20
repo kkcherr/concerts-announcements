@@ -185,13 +185,30 @@ def build_digest_messages(
     return messages
 
 
+def _strip_artist_prefix(event_name: str | None, artist: str) -> str:
+    """Return the concert/tour name with the artist prefix removed, or '' if none."""
+    if not event_name or event_name.strip().lower() == artist.strip().lower():
+        return ""
+    name = event_name.strip()
+    prefix = artist.strip()
+    if name.lower().startswith(prefix.lower()):
+        remainder = name[len(prefix):].lstrip(" :-|–—")
+        if remainder:
+            return remainder
+    return name
+
+
 def _format_entry(event: MergedEvent, timezone: ZoneInfo) -> str:
     lines = []
 
     if event.priority:
         lines.append(f"⭐ <b>{PRIORITY_MARKER}</b>")
 
-    lines.append(f"🎤 <b>{_escape(event.artist)}</b>")
+    concert_name = _strip_artist_prefix(event.event_name, event.artist)
+    if concert_name:
+        lines.append(f"🎤 <b>{_escape(event.artist)} : {_escape(concert_name)}</b>")
+    else:
+        lines.append(f"🎤 <b>{_escape(event.artist)}</b>")
 
     venue_city = [p for p in [event.venue, event.city] if p]
     if venue_city:
@@ -200,9 +217,6 @@ def _format_entry(event: MergedEvent, timezone: ZoneInfo) -> str:
         country_obj = pycountry.countries.get(alpha_2=event.country)
         country_name = country_obj.name if country_obj else event.country
         lines.append(f"🌍 {_escape(country_name)}")
-
-    if event.event_name and event.event_name.strip().lower() != event.artist.strip().lower():
-        lines.append(f"🎪 {_escape(event.event_name)}")
 
     date_str = event.event_date.strftime("%a %d %b %Y") if event.event_date else "Date TBA"
     lines.append(f"📅 {date_str}")
