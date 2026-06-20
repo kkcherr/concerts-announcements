@@ -221,6 +221,9 @@ def _format_entry(event: MergedEvent, timezone: ZoneInfo) -> str:
     date_str = event.event_date.strftime("%a %d %b %Y") if event.event_date else "Date TBA"
     lines.append(f"📅 {date_str}")
 
+    if event.onsale_datetime or event.presales:
+        lines.append("")
+
     if event.onsale_datetime:
         local_onsale = event.onsale_datetime.astimezone(timezone)
         lines.append(f"🛒 General onsale: {local_onsale.strftime('%a %d %b %Y, %H:%M %Z')}")
