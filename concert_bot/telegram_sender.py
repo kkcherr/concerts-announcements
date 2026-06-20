@@ -7,6 +7,7 @@ import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+import pycountry
 import requests
 
 from concert_bot.models import MergedEvent
@@ -192,9 +193,13 @@ def _format_entry(event: MergedEvent, timezone: ZoneInfo) -> str:
 
     lines.append(f"🎤 <b>{_escape(event.artist)}</b>")
 
-    location_parts = [p for p in [event.venue, event.city, event.country] if p]
-    if location_parts:
-        lines.append(f"📍 {_escape(' · '.join(location_parts))}")
+    venue_city = [p for p in [event.venue, event.city] if p]
+    if venue_city:
+        lines.append(f"📍 {_escape(' · '.join(venue_city))}")
+    if event.country:
+        country_obj = pycountry.countries.get(alpha_2=event.country)
+        country_name = country_obj.name if country_obj else event.country
+        lines.append(f"🌍 {_escape(country_name)}")
 
     if event.event_name and event.event_name.strip().lower() != event.artist.strip().lower():
         lines.append(f"🎪 {_escape(event.event_name)}")
