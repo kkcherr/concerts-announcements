@@ -191,12 +191,13 @@ def _format_entry(event: MergedEvent, timezone: ZoneInfo) -> str:
         lines.append(f"⭐ <b>{PRIORITY_MARKER}</b>")
 
     lines.append(f"🎤 <b>{_escape(event.artist)}</b>")
-    if event.event_name and event.event_name.strip().lower() != event.artist.strip().lower():
-        lines.append(f"🎪 {_escape(event.event_name)}")
 
     location_parts = [p for p in [event.venue, event.city, event.country] if p]
     if location_parts:
         lines.append(f"📍 {_escape(' · '.join(location_parts))}")
+
+    if event.event_name and event.event_name.strip().lower() != event.artist.strip().lower():
+        lines.append(f"🎪 {_escape(event.event_name)}")
 
     date_str = event.event_date.strftime("%a %d %b %Y") if event.event_date else "Date TBA"
     if event.event_time:
