@@ -236,6 +236,9 @@ def _format_entry(event: MergedEvent, timezone: ZoneInfo) -> str:
             presale_lines.append(f"   • <b>{_escape(presale.name)}</b>: {start} → {end}")
         lines.append("\n".join(presale_lines))
 
+    if event.onsale_datetime or event.presales:
+        lines.append("")
+
     for source_name, url in event.urls:
         label = SOURCE_LABELS.get(source_name, source_name)
         lines.append(f'🎟️ <a href="{url}">{label} link</a>')
