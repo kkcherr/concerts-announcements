@@ -205,8 +205,6 @@ def _format_entry(event: MergedEvent, timezone: ZoneInfo) -> str:
         lines.append(f"🎪 {_escape(event.event_name)}")
 
     date_str = event.event_date.strftime("%a %d %b %Y") if event.event_date else "Date TBA"
-    if event.event_time:
-        date_str += f" at {event.event_time}"
     lines.append(f"📅 {date_str}")
 
     if event.onsale_datetime:
